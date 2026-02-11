@@ -1,6 +1,6 @@
 ---
-name: delegate-to-twill
-description: Delegate coding tasks to Twill, an async AI coding agent. Use when users want to create coding tasks, check task status, send follow-ups, approve plans, or cancel tasks through the Twill API.
+name: twill-cloud-coding-agent
+description: Use Twill Cloud Coding Agent to run async coding workflows in Twill. Create tasks, monitor status, send follow-ups, approve plans, and cancel tasks through the Twill API.
 compatibility: Requires access to https://twill.ai/api/v1, curl, and a TWILL_API_KEY environment variable.
 metadata:
   author: TwillAI
@@ -10,9 +10,9 @@ metadata:
   api_base: https://twill.ai/api/v1
 ---
 
-# Twill
+# Twill Cloud Coding Agent
 
-Delegate coding tasks to Twill, an async AI coding agent that plans, codes, and opens PRs on GitHub repositories.
+Use Twill Cloud Coding Agent to delegate coding tasks, track active work, and manage plan approvals and follow-ups.
 
 ## Setup
 
