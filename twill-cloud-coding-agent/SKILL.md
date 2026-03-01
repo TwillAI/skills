@@ -1,6 +1,6 @@
 ---
 name: twill-cloud-coding-agent
-description: Use Twill Cloud Coding Agent to manage Twill's public v1 API workflows. Create/list/update tasks, stream and cancel jobs, manage automations, list repositories, and export Claude teleport sessions.
+description: Use Twill Cloud Coding Agent to manage Twill's public v1 API workflows. Create/list/update tasks, stream and cancel jobs, manage scheduled tasks, list repositories, and export Claude teleport sessions.
 compatibility: Requires access to https://twill.ai/api/v1, curl, and a TWILL_API_KEY environment variable.
 metadata:
   author: TwillAI
@@ -52,13 +52,13 @@ api() {
 - `GET /api/v1/tasks/:taskIdOrSlug/teleport/claude`
 - `GET /api/v1/jobs/:jobId/logs/stream`
 - `POST /api/v1/jobs/:jobId/cancel`
-- `GET /api/v1/automations`
-- `POST /api/v1/automations`
-- `GET /api/v1/automations/:automationId`
-- `PATCH /api/v1/automations/:automationId`
-- `DELETE /api/v1/automations/:automationId`
-- `POST /api/v1/automations/:automationId/pause`
-- `POST /api/v1/automations/:automationId/resume`
+- `GET /api/v1/scheduled-tasks`
+- `POST /api/v1/scheduled-tasks`
+- `GET /api/v1/scheduled-tasks/:scheduledTaskId`
+- `PATCH /api/v1/scheduled-tasks/:scheduledTaskId`
+- `DELETE /api/v1/scheduled-tasks/:scheduledTaskId`
+- `POST /api/v1/scheduled-tasks/:scheduledTaskId/pause`
+- `POST /api/v1/scheduled-tasks/:scheduledTaskId/resume`
 
 ## Auth and Discovery
 
@@ -178,15 +178,15 @@ Stream emits JSON payloads in `data:` lines and terminates with a `complete` eve
 api -X POST "$TWILL_BASE_URL/api/v1/jobs/JOB_ID/cancel" -d '{}'
 ```
 
-## Automations
+## Scheduled Tasks
 
 ### List and Create
 
 ```bash
-curl -sS "$TWILL_BASE_URL/api/v1/automations" \
+curl -sS "$TWILL_BASE_URL/api/v1/scheduled-tasks" \
   -H "Authorization: Bearer $TWILL_API_KEY"
 
-api -X POST "$TWILL_BASE_URL/api/v1/automations" -d '{
+api -X POST "$TWILL_BASE_URL/api/v1/scheduled-tasks" -d '{
   "title":"Daily triage",
   "message":"Review urgent issues and open tasks",
   "repositoryUrl":"https://github.com/org/repo",
@@ -204,24 +204,24 @@ Optional: `timezone` (defaults to `"UTC"`), `agentProviderId` (provider/model ov
 ### Read, Update, Delete
 
 ```bash
-curl -sS "$TWILL_BASE_URL/api/v1/automations/AUTOMATION_ID" \
+curl -sS "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID" \
   -H "Authorization: Bearer $TWILL_API_KEY"
 
-api -X PATCH "$TWILL_BASE_URL/api/v1/automations/AUTOMATION_ID" -d '{
+api -X PATCH "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID" -d '{
   "message":"Updated instructions",
   "cronExpression":"0 10 * * 1-5",
   "agentProviderId":"codex/gpt-5.2"
 }'
 
-curl -sS -X DELETE "$TWILL_BASE_URL/api/v1/automations/AUTOMATION_ID" \
+curl -sS -X DELETE "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID" \
   -H "Authorization: Bearer $TWILL_API_KEY"
 ```
 
 ### Pause and Resume
 
 ```bash
-api -X POST "$TWILL_BASE_URL/api/v1/automations/AUTOMATION_ID/pause" -d '{}'
-api -X POST "$TWILL_BASE_URL/api/v1/automations/AUTOMATION_ID/resume" -d '{}'
+api -X POST "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID/pause" -d '{}'
+api -X POST "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID/resume" -d '{}'
 ```
 
 ## Behavior
