@@ -4,7 +4,7 @@ description: Use Twill Cloud Coding Agent to manage Twill's public v1 API workfl
 compatibility: Requires access to https://twill.ai/api/v1, curl, and a TWILL_API_KEY environment variable.
 metadata:
   author: TwillAI
-  version: "1.1.0"
+  version: "1.2.0"
   category: coding
   homepage: https://twill.ai
   api_base: https://twill.ai/api/v1
@@ -94,7 +94,7 @@ Optional fields:
 
 - `branch`
 - `agent` (provider or provider/model, for example `codex` or `codex/gpt-5.2`)
-- `userIntent` (`SWE`, `PLAN`, `ASK`, `DEV_ENVIRONMENT`, `SCHEDULE`)
+- `userIntent` (`SWE`, `PLAN`, `ASK`, `DEV_ENVIRONMENT`) — defaults to `SWE`
 - `title`
 - `files` (array of `{ filename, mediaType, url }`)
 
@@ -130,9 +130,14 @@ api -X POST "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/messages" \
 ### List Task Jobs
 
 ```bash
-curl -sS "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/jobs" \
+curl -sS "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/jobs?limit=30&cursor=BASE64_CURSOR" \
   -H "Authorization: Bearer $TWILL_API_KEY"
 ```
+
+Supports cursor pagination:
+- `limit` defaults to `30` (max `100`)
+- `cursor` fetches older pages
+- response includes `jobs` and `nextCursor`
 
 ### Approve Plan
 
@@ -187,9 +192,14 @@ api -X POST "$TWILL_BASE_URL/api/v1/automations" -d '{
   "repositoryUrl":"https://github.com/org/repo",
   "baseBranch":"main",
   "cronExpression":"0 9 * * 1-5",
-  "timezone":"America/New_York"
+  "timezone":"America/New_York",
+  "agentProviderId":"claude-code/sonnet"
 }'
 ```
+
+Required: `title`, `message`, `repositoryUrl`, `baseBranch`, `cronExpression`.
+
+Optional: `timezone` (defaults to `"UTC"`), `agentProviderId` (provider/model override).
 
 ### Read, Update, Delete
 
@@ -199,7 +209,8 @@ curl -sS "$TWILL_BASE_URL/api/v1/automations/AUTOMATION_ID" \
 
 api -X PATCH "$TWILL_BASE_URL/api/v1/automations/AUTOMATION_ID" -d '{
   "message":"Updated instructions",
-  "cronExpression":"0 10 * * 1-5"
+  "cronExpression":"0 10 * * 1-5",
+  "agentProviderId":"codex/gpt-5.2"
 }'
 
 curl -sS -X DELETE "$TWILL_BASE_URL/api/v1/automations/AUTOMATION_ID" \
@@ -215,7 +226,7 @@ api -X POST "$TWILL_BASE_URL/api/v1/automations/AUTOMATION_ID/resume" -d '{}'
 
 ## Behavior
 
-- Use `userIntent` values, not `mode`, when calling API endpoints directly.
+- Use `userIntent` (`SWE`, `PLAN`, `ASK`, `DEV_ENVIRONMENT`) when calling API endpoints directly.
 - Create task, report `task.url`, and only poll/stream logs when requested.
 - Ask for `TWILL_API_KEY` if missing.
 - Do not print API keys or other secrets.
