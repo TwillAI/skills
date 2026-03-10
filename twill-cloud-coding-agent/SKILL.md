@@ -31,9 +31,7 @@ Use this helper to reduce repetition:
 
 ```bash
 api() {
-  curl -sS "$@" \
-    -H "Authorization: Bearer $TWILL_API_KEY" \
-    -H "Content-Type: application/json"
+  curl -sS "$@" -H "Authorization: Bearer $TWILL_API_KEY" -H "Content-Type: application/json"
 }
 ```
 
@@ -65,15 +63,13 @@ api() {
 Validate key and workspace context:
 
 ```bash
-curl -sS "$TWILL_BASE_URL/api/v1/auth/me" \
-  -H "Authorization: Bearer $TWILL_API_KEY"
+curl -sS "$TWILL_BASE_URL/api/v1/auth/me" -H "Authorization: Bearer $TWILL_API_KEY"
 ```
 
 List available GitHub repositories for the workspace:
 
 ```bash
-curl -sS "$TWILL_BASE_URL/api/v1/repositories" \
-  -H "Authorization: Bearer $TWILL_API_KEY"
+curl -sS "$TWILL_BASE_URL/api/v1/repositories" -H "Authorization: Bearer $TWILL_API_KEY"
 ```
 
 ## Tasks
@@ -81,8 +77,7 @@ curl -sS "$TWILL_BASE_URL/api/v1/repositories" \
 ### Create Task
 
 ```bash
-api -X POST "$TWILL_BASE_URL/api/v1/tasks" \
-  -d '{"command":"Fix flaky tests in CI","repository":"owner/repo","userIntent":"SWE"}'
+api -X POST "$TWILL_BASE_URL/api/v1/tasks" -d '{"command":"Fix flaky tests in CI","repository":"owner/repo","userIntent":"SWE"}'
 ```
 
 Required fields:
@@ -103,8 +98,7 @@ Always report `task.url` back to the user.
 ### List Tasks
 
 ```bash
-curl -sS "$TWILL_BASE_URL/api/v1/tasks?limit=20&cursor=BASE64_CURSOR" \
-  -H "Authorization: Bearer $TWILL_API_KEY"
+curl -sS "$TWILL_BASE_URL/api/v1/tasks?limit=20&cursor=BASE64_CURSOR" -H "Authorization: Bearer $TWILL_API_KEY"
 ```
 
 Supports cursor pagination via `limit` and `cursor`.
@@ -112,8 +106,7 @@ Supports cursor pagination via `limit` and `cursor`.
 ### Get Task Details
 
 ```bash
-curl -sS "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG" \
-  -H "Authorization: Bearer $TWILL_API_KEY"
+curl -sS "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG" -H "Authorization: Bearer $TWILL_API_KEY"
 ```
 
 Returns task metadata plus `latestJob` including status, type, plan content, and plan outcome when available.
@@ -121,8 +114,7 @@ Returns task metadata plus `latestJob` including status, type, plan content, and
 ### Send Follow-Up Message
 
 ```bash
-api -X POST "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/messages" \
-  -d '{"message":"Please prioritize login flow first","userIntent":"PLAN"}'
+api -X POST "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/messages" -d '{"message":"Please prioritize login flow first","userIntent":"PLAN"}'
 ```
 
 `userIntent` and `files` are optional.
@@ -130,8 +122,7 @@ api -X POST "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/messages" \
 ### List Task Jobs
 
 ```bash
-curl -sS "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/jobs?limit=30&cursor=BASE64_CURSOR" \
-  -H "Authorization: Bearer $TWILL_API_KEY"
+curl -sS "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/jobs?limit=30&cursor=BASE64_CURSOR" -H "Authorization: Bearer $TWILL_API_KEY"
 ```
 
 Supports cursor pagination:
@@ -144,8 +135,7 @@ Supports cursor pagination:
 Use when the latest plan job is completed and ready for approval.
 
 ```bash
-api -X POST "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/approve-plan" \
-  -d '{}'
+api -X POST "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/approve-plan" -d '{}'
 ```
 
 ### Cancel Task
@@ -165,9 +155,7 @@ api -X POST "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/archive" -d '{}'
 ### Stream Job Logs (SSE)
 
 ```bash
-curl -N "$TWILL_BASE_URL/api/v1/jobs/JOB_ID/logs/stream" \
-  -H "Authorization: Bearer $TWILL_API_KEY" \
-  -H "Accept: text/event-stream"
+curl -N "$TWILL_BASE_URL/api/v1/jobs/JOB_ID/logs/stream" -H "Authorization: Bearer $TWILL_API_KEY" -H "Accept: text/event-stream"
 ```
 
 Stream emits JSON payloads in `data:` lines and terminates with a `complete` event.
@@ -183,8 +171,7 @@ api -X POST "$TWILL_BASE_URL/api/v1/jobs/JOB_ID/cancel" -d '{}'
 ### List and Create
 
 ```bash
-curl -sS "$TWILL_BASE_URL/api/v1/scheduled-tasks" \
-  -H "Authorization: Bearer $TWILL_API_KEY"
+curl -sS "$TWILL_BASE_URL/api/v1/scheduled-tasks" -H "Authorization: Bearer $TWILL_API_KEY"
 
 api -X POST "$TWILL_BASE_URL/api/v1/scheduled-tasks" -d '{
   "title":"Daily triage",
@@ -204,8 +191,7 @@ Optional: `timezone` (defaults to `"UTC"`), `agentProviderId` (provider/model ov
 ### Read, Update, Delete
 
 ```bash
-curl -sS "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID" \
-  -H "Authorization: Bearer $TWILL_API_KEY"
+curl -sS "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID" -H "Authorization: Bearer $TWILL_API_KEY"
 
 api -X PATCH "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID" -d '{
   "message":"Updated instructions",
@@ -213,8 +199,7 @@ api -X PATCH "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID" -d '{
   "agentProviderId":"codex/gpt-5.2"
 }'
 
-curl -sS -X DELETE "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID" \
-  -H "Authorization: Bearer $TWILL_API_KEY"
+curl -sS -X DELETE "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID" -H "Authorization: Bearer $TWILL_API_KEY"
 ```
 
 ### Pause and Resume
