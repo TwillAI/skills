@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Record a video using WebReel and copy output to the target directory.
+# Usage: twill-video-record <config-path> <output-dir>
+
+CONFIG="${1:-webreel.config.json}"
+OUTPUT_DIR="${2:-$TWILL_SCREENSHOTS_DIR}"
+
+if [ ! -f "$CONFIG" ]; then
+  echo "Error: Config file not found: $CONFIG" >&2
+  exit 1
+fi
+
+mkdir -p "$OUTPUT_DIR"
+
+# Run webreel record
+webreel record --config "$CONFIG" 2>&1
+
+# Find the output video(s) — webreel writes to the path specified in config
+# Parse the output filename from the config
+OUTPUT_FILE=$(python3 -c "
+import json
+from pathlib import Path
+config = json.loads(Path('$CONFIG').read_text())
+videos = config.get('videos', {})
+for name, v in videos.items():
+    out = v.get('output', name + '.mp4')
+    print(out)
+    break
+")
+
+if [ -f "$OUTPUT_FILE" ]; then
+  # Copy to output directory
+  BASENAME=$(basename "$OUTPUT_FILE")
+  cp "$OUTPUT_FILE" "$OUTPUT_DIR/$BASENAME"
+  echo "{\"final\": \"$OUTPUT_DIR/$BASENAME\"}"
+elif [ -f "out/$OUTPUT_FILE" ]; then
+  BASENAME=$(basename "$OUTPUT_FILE")
+  cp "out/$OUTPUT_FILE" "$OUTPUT_DIR/$BASENAME"
+  echo "{\"final\": \"$OUTPUT_DIR/$BASENAME\"}"
+else
+  echo "Warning: Output video not found at $OUTPUT_FILE" >&2
+  # Check outDir from config or default locations
+  FOUND=$(find . -maxdepth 3 -name "*.mp4" -newer "$CONFIG" -print -quit 2>/dev/null || true)
+  if [ -n "$FOUND" ]; then
+    BASENAME=$(basename "$FOUND")
+    cp "$FOUND" "$OUTPUT_DIR/$BASENAME"
+    echo "{\"final\": \"$OUTPUT_DIR/$BASENAME\"}"
+  else
+    echo "{\"error\": \"No output video found\"}" >&2
+    exit 1
+  fi
+fi
