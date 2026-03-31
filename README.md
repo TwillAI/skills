@@ -14,7 +14,9 @@ Skills are organized by directory and may either live directly at the top level 
 
 Use Twill's public `v1` API to create tasks, inspect jobs, manage scheduled tasks, and export Claude teleport sessions.
 
-- Install and docs: [skills.sh/twillai/skills/twill-cloud-coding-agent](https://skills.sh/twillai/skills/twill-cloud-coding-agent)
+- Install URL: [`https://twill.ai/skill.md`](https://twill.ai/skill.md)
+- Agent docs: [`twill-cloud-coding-agent/SKILL.md`](./twill-cloud-coding-agent/SKILL.md)
+- Package page: [skills.sh/twillai/skills/twill-cloud-coding-agent](https://skills.sh/twillai/skills/twill-cloud-coding-agent)
 
 ### [`video-recording`](./video-recording)
 
