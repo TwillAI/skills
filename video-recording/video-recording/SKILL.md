@@ -1,6 +1,6 @@
 ---
 name: video-recording
-description: Record high-quality browser verification videos using WebReel. Two-phase workflow: test with agent-browser to collect CSS selectors, then record with WebReel for polished output.
+description: "Record high-quality browser verification videos using WebReel. Two-phase workflow: test with agent-browser to collect CSS selectors, then record with WebReel for polished output."
 compatibility: Requires agent-browser and webreel.
 allowed-tools: Bash(*)
 metadata:
