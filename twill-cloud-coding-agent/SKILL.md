@@ -89,9 +89,8 @@ Required fields:
 Optional fields:
 
 - `agent` (provider or provider/model, for example `codex` or `codex/gpt-5.4`; provider shorthands accepted: `claude-code`, `codex`, `open-code`)
-- `userIntent` (`SWE`, `PLAN`, `ASK`, `DEV_ENVIRONMENT`, `RALPH_LOOP`) — defaults to `SWE`
+- `userIntent` (`SWE`, `PLAN`, `ASK`, `DEV_ENVIRONMENT`) — defaults to `SWE`
 - `reasoningEffort` (`low`, `medium`, `high`, `xhigh`)
-- `ralphLoopBudgetUsd` (integer USD; required when `userIntent` is `RALPH_LOOP`)
 - `parentId` (id of an existing task to spawn this one from)
 - `title`
 - `files` (array of `{ filename, mediaType, url }`)
@@ -220,7 +219,7 @@ api -X POST "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID/resume" -d
 
 ## Behavior
 
-- Use `userIntent` (`SWE`, `PLAN`, `ASK`, `DEV_ENVIRONMENT`, `RALPH_LOOP`) when calling API endpoints directly. `RALPH_LOOP` requires `ralphLoopBudgetUsd`.
+- Use `userIntent` (`SWE`, `PLAN`, `ASK`, `DEV_ENVIRONMENT`) when calling API endpoints directly.
 - Do **not** send `repository` / `branch` on tasks or `repositoryUrl` / `baseBranch` on scheduled tasks — these fields were removed; repo/branch is resolved by the agent at run time from workspace context.
 - Create task, report `task.url`, and only poll/stream logs when requested.
 - Ask for `TWILL_API_KEY` if missing.
