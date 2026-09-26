@@ -4,7 +4,7 @@ description: Use Twill Cloud Coding Agent to manage Twill's public v1 API workfl
 compatibility: Requires access to https://twill.ai/api/v1, curl, and a TWILL_API_KEY environment variable.
 metadata:
   author: TwillAI
-  version: "1.3.0"
+  version: "1.4.0"
   category: coding
   homepage: https://twill.ai
   api_base: https://twill.ai/api/v1
@@ -35,6 +35,10 @@ api() {
 }
 ```
 
+API keys belong to a cloud workspace and only reach its cloud tasks. Keys from a personal workspace are rejected, and local project chats (Twill Desktop) are not visible through the API: they return `404` or are omitted from lists.
+
+Errors are JSON `{ "error": { "code", "message", "details"? } }`. Rate limits are 100 requests/minute and 1,000/hour per key; a `429` includes `Retry-After`.
+
 ## Endpoint Coverage (Public v1)
 
 - `GET /api/v1/auth/me`
@@ -44,7 +48,6 @@ api() {
 - `GET /api/v1/tasks/:taskIdOrSlug`
 - `POST /api/v1/tasks/:taskIdOrSlug/messages`
 - `GET /api/v1/tasks/:taskIdOrSlug/jobs`
-- `POST /api/v1/tasks/:taskIdOrSlug/approve-plan`
 - `POST /api/v1/tasks/:taskIdOrSlug/cancel`
 - `POST /api/v1/tasks/:taskIdOrSlug/archive`
 - `GET /api/v1/tasks/:taskIdOrSlug/teleport/claude`
@@ -58,6 +61,8 @@ api() {
 - `POST /api/v1/scheduled-tasks/:scheduledTaskId/pause`
 - `POST /api/v1/scheduled-tasks/:scheduledTaskId/resume`
 
+There is no plan-approval endpoint. Plans and native permission questions are answered in the Twill task chat.
+
 ## Auth and Discovery
 
 Validate key and workspace context:
@@ -66,21 +71,25 @@ Validate key and workspace context:
 curl -sS "$TWILL_BASE_URL/api/v1/auth/me" -H "Authorization: Bearer $TWILL_API_KEY"
 ```
 
+Returns `workspaceId`, `userId`, `apiKeyId`, `workspaceName`, `workspaceSlug`.
+
 List available GitHub repositories for the workspace:
 
 ```bash
 curl -sS "$TWILL_BASE_URL/api/v1/repositories" -H "Authorization: Bearer $TWILL_API_KEY"
 ```
 
+Returns `{ repositories: [{ fullName, defaultBranch, description }] }`.
+
 ## Tasks
 
 ### Create Task
 
 ```bash
-api -X POST "$TWILL_BASE_URL/api/v1/tasks" -d '{"command":"Fix flaky tests in CI","userIntent":"SWE"}'
+api -X POST "$TWILL_BASE_URL/api/v1/tasks" -d '{"command":"Fix flaky tests in CI"}'
 ```
 
-Repository and branch are no longer accepted in the request body — the task runs against the workspace's connected repos as resolved by the agent at runtime.
+Repository and branch are not accepted in the request body. The agent picks from the workspace's connected repos at run time.
 
 Required fields:
 
@@ -88,14 +97,16 @@ Required fields:
 
 Optional fields:
 
-- `agent` (provider or provider/model, for example `codex` or `codex/gpt-5.4`; provider shorthands accepted: `claude-code`, `codex`, `open-code`)
-- `userIntent` (`SWE`, `PLAN`, `ASK`, `DEV_ENVIRONMENT`) — defaults to `SWE`
-- `reasoningEffort` (`low`, `medium`, `high`, `xhigh`)
+- `agent`: a complete `provider/model` id, for example `claude-code/sonnet`, `claude-code/opus`, `codex/gpt-5.5`, `open-code/openai/gpt-5.4`. Provider-only values such as `codex` are rejected. Omit it to use the workspace's routing defaults.
+- `userIntent` (`SWE`, `DEV_ENVIRONMENT`, `SCHEDULE`): defaults to `SWE`. Legacy `PLAN`, `ASK` and `GOAL` are still accepted but run as `SWE`.
+- `reasoningEffort` (`low`, `medium`, `high`, `xhigh`, `max`, `ultra`)
 - `parentId` (id of an existing task to spawn this one from)
 - `title`
-- `files` (array of `{ filename, mediaType, url }`)
+- `files` (array of `{ filename, mediaType, url }`, where `url` must be a `data:` URL such as `data:text/plain;base64,...`; remote `http(s):` URLs are rejected)
 
-Response is `{ task: { id, slug, title, url }, job: { id, status } }`. Always report `task.url` back to the user.
+To have the agent plan first, start `command` with `/plan`. The user reviews and approves the plan in the Twill task chat.
+
+Response (`201`) is `{ task: { id, slug, title, url }, job: { id, status } }`. Always report `task.url` back to the user.
 
 ### List Tasks
 
@@ -103,7 +114,7 @@ Response is `{ task: { id, slug, title, url }, job: { id, status } }`. Always re
 curl -sS "$TWILL_BASE_URL/api/v1/tasks?limit=20&cursor=BASE64_CURSOR" -H "Authorization: Bearer $TWILL_API_KEY"
 ```
 
-Supports cursor pagination via `limit` (default 20, max 100) and `cursor`. Response is `{ tasks, nextCursor }`; each task includes `id`, `slug`, `title`, `url`, `createdAt`, `latestJobStatus`, and `pr`.
+Supports cursor pagination via `limit` (default 20, max 100) and `cursor`. Response is `{ tasks, nextCursor }`; each task includes `id`, `slug`, `title`, `url`, `createdAt`, `latestJobStatus`, and `prs` (array of `{ repoFullName, prNumber, prUrl, title, state }`, where `state` is `open`, `merged` or `closed`).
 
 ### Get Task Details
 
@@ -111,17 +122,17 @@ Supports cursor pagination via `limit` (default 20, max 100) and `cursor`. Respo
 curl -sS "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG" -H "Authorization: Bearer $TWILL_API_KEY"
 ```
 
-Returns task metadata plus `latestJob` including `id`, `status`, `type`, `agentProvider`, `startedAt`, `completedAt`, `plan`, `planOutcome`, `finalAnswer` (useful for `ASK` jobs), and `pr` when available.
+Returns `task` (`id`, `slug`, `title`, `url`, `createdAt`, `updatedAt`, `prs`) and `latestJob` (`id`, `status`, `type`, `agentProvider`, `startedAt`, `completedAt`, `plan`, `planOutcome`, `finalAnswer`), or `latestJob: null`.
 
 ### Send Follow-Up Message
 
 ```bash
-api -X POST "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/messages" -d '{"message":"Please prioritize login flow first","userIntent":"PLAN"}'
+api -X POST "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/messages" -d '{"message":"Please prioritize login flow first"}'
 ```
 
-Sending a message cancels any in-flight job for the task and starts a fresh run with this message (API/CLI bypass the UI queueing flow).
+Sending a message cancels any in-flight job for the task and starts a fresh run with this message. The response is `{ job: { id, status } }`.
 
-Optional fields: `userIntent`, `reasoningEffort` (`low`, `medium`, `high`, `xhigh`), `files`.
+Optional fields: `userIntent`, `reasoningEffort`, `files` (same rules as create), and `agent`. `agent` may change the model but not the harness: switching from `claude-code/...` to `codex/...` returns `400`. Start a new task to use another harness.
 
 ### List Task Jobs
 
@@ -132,15 +143,7 @@ curl -sS "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/jobs?limit=30&cursor=BASE
 Supports cursor pagination:
 - `limit` defaults to `30` (max `100`)
 - `cursor` fetches older pages
-- response includes `jobs` and `nextCursor`
-
-### Approve Plan
-
-Use when the latest plan job is completed and ready for approval.
-
-```bash
-api -X POST "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/approve-plan" -d '{}'
-```
+- response is `{ jobs, nextCursor }`; each job has `id`, `status`, `type`, `agentProvider`, `finalAnswer`, `plan`, `planOutcome`, `error`, `createdAt`, `completedAt`
 
 ### Cancel Task
 
@@ -154,6 +157,14 @@ api -X POST "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/cancel" -d '{}'
 api -X POST "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/archive" -d '{}'
 ```
 
+### Export Claude Teleport Session
+
+```bash
+curl -sS "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/teleport/claude" -H "Authorization: Bearer $TWILL_API_KEY" -o session.tar
+```
+
+Returns a tar of the task's Claude Code session JSONL files (headers `X-Twill-Session-Id`, `X-Twill-Job-Id`, `X-Twill-File-Count`). Only works for Claude Code tasks while the task sandbox is still alive; otherwise it returns `400`, `404` or `409`.
+
 ## Jobs
 
 ### Stream Job Logs (SSE)
@@ -162,7 +173,14 @@ api -X POST "$TWILL_BASE_URL/api/v1/tasks/TASK_ID_OR_SLUG/archive" -d '{}'
 curl -N "$TWILL_BASE_URL/api/v1/jobs/JOB_ID/logs/stream" -H "Authorization: Bearer $TWILL_API_KEY" -H "Accept: text/event-stream"
 ```
 
-Stream emits JSON payloads in `data:` lines and terminates with a `complete` event.
+Each `data:` line is a JSON object with a `type`:
+
+- `connected`: first event.
+- Finished jobs: `trace_url` (`url`, `expiresAt`), a short-lived signed URL to download the full trace, then `historical_complete` and `complete` (`status`: `completed`, `failed` or `cancelled`).
+- Running jobs: `trace_chunks` (signed chunk URLs) and `trace_records` for history, then `historical_complete`, then live log and status events until `complete`.
+- `error`: the stream failed.
+
+To get a job's result without parsing the trace, prefer `finalAnswer` from Get Task Details or List Task Jobs.
 
 ### Cancel Job
 
@@ -171,6 +189,8 @@ api -X POST "$TWILL_BASE_URL/api/v1/jobs/JOB_ID/cancel" -d '{}'
 ```
 
 ## Scheduled Tasks
+
+Creating scheduled tasks requires a paid plan (Pro or Max); otherwise the API returns `403`.
 
 ### List and Create
 
@@ -188,9 +208,9 @@ api -X POST "$TWILL_BASE_URL/api/v1/scheduled-tasks" -d '{
 
 Required: `title` (max 200 chars), `message`, `cronExpression`.
 
-Optional: `timezone` (IANA name, defaults to `"UTC"`), `agentProviderId` (provider/model override, e.g. `claude-code/sonnet`, `codex/gpt-5.4`).
+Optional: `timezone` (IANA name, defaults to `"UTC"`), `agentProviderId` (complete `provider/model` override, e.g. `claude-code/sonnet`, `codex/gpt-5.5`). The server does not validate `agentProviderId` when saving, so an invalid id only fails when the schedule runs.
 
-Repository / branch are no longer part of the scheduled-task payload — each run resolves repos at agent dispatch time, the same way one-shot tasks do.
+Repository and branch are not part of the scheduled-task payload. Each run picks repos at dispatch time, like one-shot tasks.
 
 Response is `{ scheduledTask: { id, workspaceId, createdById, title, message, cronExpression, timezone, nextRunAt, lastRunAt, enabled, agentProviderId, createdAt, updatedAt } }`.
 
@@ -202,7 +222,7 @@ curl -sS "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID" -H "Authoriz
 api -X PATCH "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID" -d '{
   "message":"Updated instructions",
   "cronExpression":"0 10 * * 1-5",
-  "agentProviderId":"codex/gpt-5.4"
+  "agentProviderId":"codex/gpt-5.5"
 }'
 
 curl -sS -X DELETE "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID" -H "Authorization: Bearer $TWILL_API_KEY"
@@ -219,8 +239,11 @@ api -X POST "$TWILL_BASE_URL/api/v1/scheduled-tasks/SCHEDULED_TASK_ID/resume" -d
 
 ## Behavior
 
-- Use `userIntent` (`SWE`, `PLAN`, `ASK`, `DEV_ENVIRONMENT`) when calling API endpoints directly.
-- Do **not** send `repository` / `branch` on tasks or `repositoryUrl` / `baseBranch` on scheduled tasks — these fields were removed; repo/branch is resolved by the agent at run time from workspace context.
-- Create task, report `task.url`, and only poll/stream logs when requested.
+- Use `userIntent` `SWE` (default), `DEV_ENVIRONMENT` or `SCHEDULE`. For planning, prefix the command with `/plan` instead of sending `PLAN`.
+- Do **not** send `repository` / `branch` on tasks or `repositoryUrl` / `baseBranch` on scheduled tasks. Twill picks repos and branches at run time from workspace context.
+- Always pass `agent` / `agentProviderId` as a complete `provider/model` id.
+- Inline attachments as `data:` URLs.
+- Create the task, report `task.url`, and only poll or stream logs when requested.
+- Plan approvals and permission questions happen in the Twill task chat. A follow-up message does not answer them.
 - Ask for `TWILL_API_KEY` if missing.
 - Do not print API keys or other secrets.
